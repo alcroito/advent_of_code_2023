@@ -1,8 +1,8 @@
 use color_eyre::{eyre::eyre, Result};
 use std::path::Path;
 
-fn is_word_digit(s: &str) -> Option<u32> {
-    let words = [
+fn digit_words() -> [(&'static str, u32); 9] {
+    [
         ("one", 1),
         ("two", 2),
         ("three", 3),
@@ -12,41 +12,43 @@ fn is_word_digit(s: &str) -> Option<u32> {
         ("seven", 7),
         ("eight", 8),
         ("nine", 9),
-    ];
-
-    for (word, digit) in words {
-        if s.starts_with(word) {
-            return Some(digit);
-        }
-    }
-
-    None
+    ]
 }
 
-fn is_numeric_digit(s: &str) -> Option<u32> {
+fn try_from_word_to_digit(s: &str) -> Option<u32> {
+    digit_words()
+        .iter()
+        .find(|(word, _)| s.starts_with(word))
+        .map(|(_, digit)| *digit)
+}
+
+fn try_from_numeric_to_digit(s: &str) -> Option<u32> {
     s.chars().next().and_then(|c| c.to_digit(10))
 }
 
-fn is_word_or_numeric_digit(s: &str) -> Option<u32> {
-    is_numeric_digit(s).or_else(|| is_word_digit(s))
+fn try_from_word_or_numeric_to_digit(s: &str) -> Option<u32> {
+    try_from_numeric_to_digit(s).or_else(|| try_from_word_to_digit(s))
 }
 
 fn compute_number_from_first_and_last_digit<F>(s: &str, is_digit_fn: F) -> Result<u32>
 where
     F: Fn(&str) -> Option<u32>,
 {
-    let mut first = None;
-    let mut last = None;
-    for i in 0..s.len() {
-        let chunk = &s[i..s.len()];
-        let maybe_digit = is_digit_fn(chunk);
-        if maybe_digit.is_some() {
-            if first.is_none() {
-                first = maybe_digit
-            }
-            last = maybe_digit
-        }
-    }
+    let chunker = || (0..s.len()).map(|start_pos| &s[start_pos..]);
+
+    let first = chunker().find_map(&is_digit_fn);
+    let last = chunker().rev().find_map(&is_digit_fn);
+
+    //  {
+    //     let chunk = &s[i..s.len()];
+    //     let maybe_digit = is_digit_fn(chunk);
+    //     if maybe_digit.is_some() {
+    //         if first.is_none() {
+    //             first = maybe_digit
+    //         }
+    //         last = maybe_digit
+    //     }
+    // }
     let number = match (first, last) {
         (Some(first), Some(last)) => first * 10 + last,
         _ => return Err(eyre!("some digit not found")),
@@ -56,11 +58,11 @@ where
 }
 
 fn compute_number_from_first_and_last_digit_numeric(s: &str) -> Result<u32> {
-    compute_number_from_first_and_last_digit(s, is_numeric_digit)
+    compute_number_from_first_and_last_digit(s, try_from_numeric_to_digit)
 }
 
 fn compute_number_from_first_and_last_digit_word_numeric(s: &str) -> Result<u32> {
-    compute_number_from_first_and_last_digit(s, is_word_or_numeric_digit)
+    compute_number_from_first_and_last_digit(s, try_from_word_or_numeric_to_digit)
 }
 
 fn sum_from_two_digit_numbers<F>(s: &str, number_finder: F) -> Result<u32>
@@ -85,14 +87,14 @@ fn sum_from_two_digit_numbers_word_numeric(s: &str) -> Result<u32> {
 pub fn part1(input: &Path) -> Result<(), Error> {
     let s = std::fs::read_to_string(input)?;
     let res = sum_from_two_digit_numbers_numeric(&s)?;
-    println!("sum: {res}");
+    println!("part 1: {res}");
     Ok(())
 }
 
 pub fn part2(input: &Path) -> Result<(), Error> {
     let s = std::fs::read_to_string(input)?;
     let res = sum_from_two_digit_numbers_word_numeric(&s)?;
-    println!("sum: {res}");
+    println!("part 2: {res}");
     Ok(())
 }
 
